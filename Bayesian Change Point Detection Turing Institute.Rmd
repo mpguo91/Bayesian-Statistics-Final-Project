@@ -1,0 +1,690 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# Load required packages
+library(rjson) # To load in data from json
+library(ggplot2) # For plotting data
+library(mcp) # For determining change points by segmented linear regression.
+```
+
+```{r}
+# Load in the quality control data
+quality_control_1_json <- fromJSON(file='quality_control_1.json')
+quality_control_2_json <- fromJSON(file='quality_control_2.json')
+quality_control_3_json <- fromJSON(file='quality_control_3.json')
+quality_control_4_json <- fromJSON(file='quality_control_4.json')
+
+```
+
+
+```{r}
+# Create dataframes for the datasets
+
+# Create the dataframe for quality_control_1
+quality_control_1_df <- data.frame(quality_control_1_json$time, quality_control_1_json$series[[1]]$raw)
+names(quality_control_1_df) <- c('time','metric')
+
+# Add a group column dividing the data at index 146
+quality_control_1_df$group <- c(rep('group_0',times = 145),rep('group_1',time=nrow(quality_control_1_df)-145))
+quality_control_1_df
+
+# Create the dataframe for quality_control_2
+quality_control_2_df <- data.frame(quality_control_2_json$time, quality_control_2_json$series[[1]]$raw)
+names(quality_control_2_df) <- c('time','metric')
+
+# Add a group column dividing the data at index 97
+quality_control_2_df$group <- c(rep('group_0',times = 96),rep('group_1',time=nrow(quality_control_2_df)-96))
+quality_control_2_df
+
+# Create the dataframe for quality_control_3
+quality_control_3_df <- data.frame(quality_control_3_json$time, quality_control_3_json$series[[1]]$raw)
+names(quality_control_3_df) <- c('time','metric')
+
+# Add a group column dividing the data at index 179
+quality_control_3_df$group <- c(rep('group_0',times = 196),rep('group_1',time=nrow(quality_control_3_df)-196))
+quality_control_3_df
+
+# Create the dataframe for quality_control_4
+quality_control_4_df <- data.frame(quality_control_4_json$time, quality_control_4_json$series[[1]]$raw)
+names(quality_control_4_df) <- c('time','metric')
+
+# Add a group column dividing the data at index 157, 242, 341, and 467
+group_labels <- c(rep('group_0',times = 156),rep('group_1', times=241-156),rep('group_2', times=340-241),rep('group_3', times=466-340),rep('group_4',times=nrow(quality_control_4_df)-466))
+quality_control_4_df$group <- group_labels
+quality_control_4_df
+
+
+```
+```{r}
+# Plot the raw values for Quality Metric 1
+ggplot(data = quality_control_1_df, aes(time, metric, color=group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_1')
+```
+
+```{r}
+# Quality Metric 1 Model Fitting
+quality_control_1_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time
+)
+
+# Setting priors for single change point models
+quality_control_single_cp_priors <- list(
+  int_1 <- 'dunif(MINY,MAXY)',
+  int_2 <- 'dunif(MINY,MAXY)',
+  time_1 <- 'dt(0,SDY / (MAXX - MINX),3)',
+  time_2 <- 'dt(0,SDY / (MAXX - MINX),3)',
+  sigma_1 <- 'dnorm(0,SDY) T(0,)'
+)
+
+
+start_time <- Sys.time()
+
+quality_control_1_fit <- mcp(quality_control_1_model,data=quality_control_1_df, prior=quality_control_single_cp_priors)
+
+end_time <- Sys.time()
+
+quality_control_1_time <- end_time-start_time
+
+# Print the summary of the Quality Control 1 fitted model
+quality_control_1_summary <- summary(quality_control_1_fit)
+
+plot(quality_control_1_fit)
+
+# Get the estimate of the Quality Control 1 change point
+quality_control_1_cp <- round(quality_control_1_summary$mean[1],0)
+quality_control_1_cp
+```
+```{r}
+# Adding the mcp groups to the Quality Control 1 dataframe.
+quality_control_1_df$mcp_group <- 'group_0'
+
+quality_control_1_df$mcp_group[quality_control_1_cp:nrow(quality_control_1_df)] <- 'group_1'
+```
+
+```{r}
+# Plot the groups determined by separated mcp for Quality Metric 1
+ggplot(data = quality_control_1_df, aes(time, metric, color = mcp_group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_1_mcp')
+```
+
+
+```{r}
+# Plot the raw values for Quality Metric 2
+ggplot(data = quality_control_2_df, aes(time, metric, color=group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_2')
+```
+
+```{r}
+# Quality Metric 2 Model Fitting
+quality_control_2_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time
+)
+
+start_time <- Sys.time()
+
+quality_control_2_fit <- mcp(quality_control_2_model,data=quality_control_2_df, prior=quality_control_single_cp_priors)
+
+end_time <- Sys.time()
+
+quality_control_2_time <- end_time-start_time
+
+# Print the summary of the Quality Control 2 fitted model
+quality_control_2_summary <- summary(quality_control_2_fit)
+
+plot(quality_control_2_fit)
+
+# Get the estimate of the Quality Control 2 change point
+quality_control_2_cp <- round(quality_control_2_summary$mean[1],0)
+quality_control_2_cp
+```
+
+```{r}
+# Adding the mcp groups to the Quality Control 2 dataframe.
+quality_control_2_df$mcp_group <- 'group_0'
+
+quality_control_2_df$mcp_group[quality_control_2_cp:nrow(quality_control_2_df)] <- 'group_1'
+```
+
+```{r}
+# Plot the groups determined by separated mcp for Quality Metric 2
+ggplot(data = quality_control_2_df, aes(time, metric, color = mcp_group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_2_mcp')
+```
+
+```{r}
+# Plot the raw values for Quality Metric 3
+ggplot(data = quality_control_3_df, aes(time, metric, color=group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_3')
+```
+```{r}
+# Quality Metric 3 Model Fitting
+quality_control_3_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time
+)
+
+start_time <- Sys.time()
+
+quality_control_3_fit <- mcp(quality_control_3_model,data=quality_control_3_df, prior=quality_control_single_cp_priors)
+
+end_time <- Sys.time()
+
+quality_control_3_time <- end_time-start_time
+
+# Print the summary of the Quality Control 3 fitted model
+quality_control_3_summary <- summary(quality_control_3_fit)
+
+plot(quality_control_3_fit)
+
+# Get the estimate of the Quality Control 3 change point
+quality_control_3_cp <- round(quality_control_3_summary$mean[1],0)
+quality_control_3_cp
+```
+```{r}
+# Adding the mcp groups to the Quality Control 3 dataframe.
+quality_control_3_df$mcp_group <- 'group_0'
+
+quality_control_3_df$mcp_group[quality_control_3_cp:nrow(quality_control_3_df)] <- 'group_1'
+```
+
+```{r}
+# Plot the groups determined by separated mcp for Quality Metric 1
+ggplot(data = quality_control_3_df, aes(time, metric, color = mcp_group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_3_mcp')
+```
+
+```{r}
+# Plot the raw values for Quality Metric 4
+ggplot(data = quality_control_4_df, aes(time, metric, color = group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_4')
+```
+Using the Dirichlet Uninformative Prior
+
+```{r}
+# Quality Metric 4 Model Fitting
+quality_control_4_dirichlet_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time,
+  ~ 1 + time,
+  ~ 1 + time,
+  ~ 1 + time
+)
+
+# Setting priors around the supsected change points 157, 242, 341, and 467
+quality_control_4_dirichlet_priors = list(
+  # Change Points
+  cp_1 = "dirichlet(1)",
+  cp_2 = "dirichlet(1)",
+  cp_3 = "dirichlet(1)",
+  cp_4 = "dirichlet(1)",
+  int_1 = 'dunif(MINY,MAXY)',
+  int_2 = 'dunif(MINY,MAXY)',
+  int_3 = 'dunif(MINY,MAXY)',
+  int_4 = 'dunif(MINY,MAXY)',
+  int_5 = 'dunif(MINY,MAXY)',
+  time_1 = 'dt(0,SDY / (MAXX - MINX),5)',
+  time_2 = 'dt(0,SDY / (MAXX - MINX),5)',
+  time_3 = 'dt(0,SDY / (MAXX - MINX),5)',
+  time_4 = 'dt(0,SDY / (MAXX - MINX),5)',
+  time_5 = 'dt(0,SDY / (MAXX - MINX),5)',
+  sigma_1 = 'dnorm(0,SDY) T(0,)'
+)
+
+start_time <- Sys.time()
+
+quality_control_4_dirichlet_fit <- mcp(quality_control_4_dirichlet_model,data=quality_control_4_df,prior = quality_control_4_dirichlet_priors)
+
+end_time <- Sys.time()
+
+quality_control_4_dirichlet_time <- end_time-start_time
+
+# Print the summary of the Quality Control 4 fitted model
+quality_control_4_dirichlet_summary <- summary(quality_control_4_dirichlet_fit)
+
+plot(quality_control_4_dirichlet_fit)
+```
+
+```{r}
+# Adding the mcp groups to the quality_control_4 dataframe and plotting the mcp determined groups
+quality_control_4_dirichlet_cps <- round(quality_control_4_dirichlet_summary$mean[1:4])
+quality_control_4_dirichlet_cps
+
+quality_control_4_df$dirichlet_group <- 'group_0'
+
+j <- 1
+
+for (i in 1:nrow(quality_control_4_df)){
+    if(i == quality_control_4_dirichlet_cps[j] && j < 5){
+      j <- j + 1
+    }
+    quality_control_4_df$dirichlet_group[i] <- paste0('group_', j-1)
+}
+```
+
+```{r}
+# Plot the groups determined by combined mcp for Quality Metric 4
+ggplot(data = quality_control_4_df, aes(time, metric, color = dirichlet_group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_4_dirichlet_mcp')
+```
+
+Using the Default t-tailed prior
+
+```{r}
+# Quality Metric 4 Model Fitting
+quality_control_4_default_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time,
+  ~ 1 + time,
+  ~ 1 + time,
+  ~ 1 + time
+)
+
+quality_control_4_default_priors <- list(
+  # Regression Parameters
+  int_1 = 'dunif(MINY,MAXY)',
+  int_2 = 'dunif(MINY,MAXY)',
+  int_3 = 'dunif(MINY,MAXY)',
+  int_4 = 'dunif(MINY,MAXY)',
+  int_5 = 'dunif(MINY,MAXY)',
+  time_1 = 'dt(0,SDY / (MAXX - MINX),3)',
+  time_2 = 'dt(0,SDY / (MAXX - MINX),3)',
+  time_3 = 'dt(0,SDY / (MAXX - MINX),3)',
+  time_4 = 'dt(0,SDY / (MAXX - MINX),3)',
+  time_5 = 'dt(0,SDY / (MAXX - MINX),3)',
+  sigma_1 = 'dnorm(0,SDY) T(0,)'
+)
+
+start_time <- Sys.time()
+
+quality_control_4_default_fit <- mcp(quality_control_4_default_model,data=quality_control_4_df, prior=quality_control_4_default_priors)
+
+end_time <- Sys.time()
+
+quality_control_4_default_time <- end_time-start_time
+
+# Print the summary of the Quality Control 4 fitted model
+quality_control_4_default_summary <- summary(quality_control_4_default_fit)
+
+plot(quality_control_4_default_fit)
+```
+
+```{r}
+# Adding the mcp groups to the quality_control_4 dataframe and plotting the mcp determined groups
+quality_control_4_default_cps <- round(quality_control_4_default_summary$mean[1:4])
+quality_control_4_default_cps
+
+quality_control_4_df$default_group <- 'group_0'
+
+j <- 1
+
+for (i in 1:nrow(quality_control_4_df)){
+    if(i == quality_control_4_default_cps[j] && j < 5){
+      j <- j + 1
+    }
+    quality_control_4_df$default_group[i] <- paste0('group_', j-1)
+}
+```
+
+```{r}
+# Plot the groups determined by combined mcp for Quality Metric 4
+ggplot(data = quality_control_4_df, aes(time, metric, color = default_group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_4_default_mcp')
+```
+
+Using Informative uniform priors
+
+```{r}
+# Quality Metric 4 Model Fitting
+quality_control_4_informative_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time,
+  ~ 1 + time,
+  ~ 1 + time,
+  ~ 1 + time
+)
+
+# Setting priors around the supsected change points 157, 242, 341, and 467
+quality_control_4_informative_priors = list(
+  cp_1 = "dunif(137,177)",
+  cp_2 = "dunif(222,262)",
+  cp_3 = "dunif(321,361)",
+  cp_4 = "dunif(447,487)",
+  # Regression Parameters
+  int_1 = 'dunif(MINY,MAXY)',
+  int_2 = 'dunif(MINY,MAXY)',
+  int_3 = 'dunif(MINY,MAXY)',
+  int_4 = 'dunif(MINY,MAXY)',
+  int_5 = 'dunif(MINY,MAXY)',
+  time_1 = 'dt(0,SDY / (MAXX - MINX),3)',
+  time_2 = 'dt(0,SDY / (MAXX - MINX),3)',
+  time_3 = 'dt(0,SDY / (MAXX - MINX),3)',
+  time_4 = 'dt(0,SDY / (MAXX - MINX),3)',
+  time_5 = 'dt(0,SDY / (MAXX - MINX),3)',
+  sigma_1 = 'dnorm(0,SDY) T(0,)'
+)
+
+start_time <- Sys.time()
+
+quality_control_4_informative_fit <- mcp(quality_control_4_informative_model,data=quality_control_4_df, prior=quality_control_4_informative_priors)
+
+end_time <- Sys.time()
+
+quality_control_4_informative_time <- end_time-start_time
+
+# Print the summary of the Quality Control 4 fitted model
+quality_control_4_informative_summary <- summary(quality_control_4_informative_fit)
+
+plot(quality_control_4_informative_fit)
+```
+
+```{r}
+# Adding the mcp groups to the quality_control_4 dataframe and plotting the mcp determined groups
+quality_control_4_informative_cps <- round(quality_control_4_informative_summary$mean[1:4])
+quality_control_4_informative_cps
+
+quality_control_4_df$informative_group <- 'group_0'
+
+j <- 1
+
+for (i in 1:nrow(quality_control_4_df)){
+    if(i == quality_control_4_informative_cps[j] && j < 5){
+      j <- j + 1
+    }
+    quality_control_4_df$informative_group[i] <- paste0('group_', j-1)
+}
+```
+
+```{r}
+# Plot the groups determined by combined mcp for Quality Metric 4
+ggplot(data = quality_control_4_df, aes(time, metric, color = informative_group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_4_default_mcp')
+```
+Slicing quality_control_4 into smaller groups with one anticipated change point.
+
+```{r}
+# Slicing quality_control_4 into smaller groups with one anticipated change point.
+quality_control_4a_df <- quality_control_4_df[1:241,]
+quality_control_4b_df <- quality_control_4_df[157:340,]
+quality_control_4c_df <- quality_control_4_df[242:466,]
+quality_control_4d_df <- quality_control_4_df[341:500,]
+```
+
+```{r}
+# Plot the raw values for Quality Metric 4a
+ggplot(data = quality_control_4a_df, aes(time, metric, color = group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_4a')
+```
+
+```{r}
+# Quality Metric 4a Model Fitting
+quality_control_4a_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time
+)
+
+start_time <- Sys.time()
+
+quality_control_4a_fit <- mcp(quality_control_4a_model,data=quality_control_4a_df, prior=quality_control_single_cp_priors)
+
+end_time <- Sys.time()
+
+quality_control_4a_time <- end_time-start_time
+
+# Print the summary of the Quality Control 4 fitted model
+quality_control_4a_summary <- summary(quality_control_4a_fit)
+
+plot(quality_control_4a_fit)
+```
+
+```{r}
+# Get the estimate of the 4a change point
+quality_control_4a_cp <- round(quality_control_4a_summary$mean[1],0)
+quality_control_4a_cp
+```
+
+
+```{r}
+# Plot the raw values for Quality Metric 4b
+ggplot(data = quality_control_4b_df, aes(time, metric, color = group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_4b')
+```
+
+```{r}
+# Quality Metric 4b Model Fitting
+quality_control_4b_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time
+)
+
+start_time <- Sys.time()
+
+quality_control_4b_fit <- mcp(quality_control_4b_model,data=quality_control_4b_df, prior=quality_control_single_cp_priors)
+
+end_time <- Sys.time()
+
+quality_control_4b_time <- end_time-start_time
+
+# Print the summary of the Quality Control 4b fitted model
+quality_control_4b_summary <- summary(quality_control_4b_fit)
+
+plot(quality_control_4b_fit)
+```
+
+```{r}
+# Get the estimate of the 4b change point
+quality_control_4b_cp <- round(quality_control_4b_summary$mean[1],0)
+quality_control_4b_cp
+```
+
+```{r}
+# Plot the raw values for Quality Metric 4c
+ggplot(data = quality_control_4c_df, aes(time, metric, color = group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_4c')
+```
+
+```{r}
+# Quality Metric 4c Model Fitting
+quality_control_4c_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time
+)
+
+start_time <- Sys.time()
+
+quality_control_4c_fit <- mcp(quality_control_4c_model,data=quality_control_4c_df, prior=quality_control_single_cp_priors)
+
+end_time <- Sys.time()
+
+quality_control_4c_time <- end_time-start_time
+
+# Print the summary of the Quality Control 4c fitted model
+quality_control_4c_summary <- summary(quality_control_4c_fit)
+
+plot(quality_control_4c_fit)
+```
+
+```{r}
+# Get the estimate of the 4c change point
+quality_control_4c_cp <- round(quality_control_4c_summary$mean[1],0)
+quality_control_4c_cp
+```
+
+```{r}
+# Plot the raw values for Quality Metric 4d
+ggplot(data = quality_control_4d_df, aes(time, metric, color = group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_4d')
+```
+
+```{r}
+# Quality Metric 4d Model Fitting
+quality_control_4d_model <- list(
+  metric ~ 1 + time,
+  ~ 1 + time
+)
+
+start_time <- Sys.time()
+
+quality_control_4d_fit <- mcp(quality_control_4d_model,data=quality_control_4d_df, prior=quality_control_single_cp_priors)
+
+end_time <- Sys.time()
+
+quality_control_4d_time <- end_time-start_time
+
+# Print the summary of the Quality Control 4d fitted model
+quality_control_4d_summary <- summary(quality_control_4d_fit)
+
+plot(quality_control_4d_fit)
+```
+
+```{r}
+# Get the estimate of the 4d change point
+quality_control_4d_cp <- round(quality_control_4d_summary$mean[1],0)
+quality_control_4d_cp
+```
+
+```{r}
+# Adding the mcp groups to the quality_control_4 dataframe and plotting the mcp determined groups
+quality_control_4_cps <- c(quality_control_4a_cp, quality_control_4b_cp, quality_control_4c_cp, quality_control_4d_cp)
+quality_control_4_cps
+
+quality_control_4_df$mcp_group <- 'group_0'
+
+j <- 1
+
+for (i in 1:nrow(quality_control_4_df)){
+    if(i == quality_control_4_cps[j] && j < 5){
+      j <- j + 1
+    }
+    quality_control_4_df$mcp_group[i] <- paste0('group_', j-1)
+}
+```
+
+```{r}
+# Plot the groups determined by separated mcp for Quality Metric 4
+ggplot(data = quality_control_4_df, aes(time, metric, color = mcp_group)) + 
+  geom_line() +
+  geom_point() +
+  ggtitle('quality_control_4_mcp')
+```
+
+```{r}
+# Printing changepoints
+print('Quality Control 1; True cp: 146')
+quality_control_1_cp
+
+print('Quality Control 2; True cp: 97')
+quality_control_2_cp
+
+print('Quality Control 3; True cp: 179')
+quality_control_3_cp
+
+print('Quality Control 4 Dirichlet; True cp: 157, 242, 341, and 467')
+quality_control_4_dirichlet_cps
+
+print('Quality Control 4 Default; True cp: 157, 242, 341, and 467')
+quality_control_4_default_cps
+
+print('Quality Control 4 Informative; True cp: 157, 242, 341, and 467')
+quality_control_4_informative_cps
+
+print('Quality Control 4 Separated; True cp: 157, 242, 341, and 467')
+quality_control_4_cps
+```
+
+```{r}
+# Calculating and Printing the misclassification rate of the methods
+print('Quality Control 1 Misclass Rate')
+quality_control_1_misclass_rate <- mean(quality_control_1_df$group != quality_control_1_df$mcp_group)
+quality_control_1_misclass_rate
+
+print('Quality Control 2 Misclass Rate')
+quality_control_2_misclass_rate <- mean(quality_control_2_df$group != quality_control_2_df$mcp_group)
+quality_control_2_misclass_rate
+
+print('Quality Control 3 Misclass Rate')
+quality_control_3_misclass_rate <- mean(quality_control_3_df$group != quality_control_3_df$mcp_group)
+quality_control_3_misclass_rate
+
+print('Quality Control 4 Dirichlet Misclass Rate')
+quality_control_4_misclass_rate <- mean(quality_control_4_df$group != quality_control_4_df$dirichlet_group)
+quality_control_4_misclass_rate
+
+print('Quality Control 4 Default Misclass Rate')
+quality_control_4_misclass_rate <- mean(quality_control_4_df$group != quality_control_4_df$default_group)
+quality_control_4_misclass_rate
+
+print('Quality Control 4 Informative Misclass Rate')
+quality_control_4_misclass_rate <- mean(quality_control_4_df$group != quality_control_4_df$informative_group)
+quality_control_4_misclass_rate
+
+print('Quality Control 4 Separated Misclass Rate')
+quality_control_4_misclass_rate <- mean(quality_control_4_df$group != quality_control_4_df$mcp_group)
+quality_control_4_misclass_rate
+```
+
+```{r}
+# Printing the Time Taken for each Method
+print('Quality Control 1 Time')
+quality_control_1_time
+
+print('Quality Control 2 Time')
+quality_control_2_time
+
+print('Quality Control 3 Time')
+quality_control_3_time
+
+print('Quality Control 4 Dirichlet Time')
+quality_control_4_dirichlet_time
+
+print('Quality Control 4 Default Time')
+quality_control_4_default_time
+
+print('Quality Control 4 Informative Time')
+quality_control_4_informative_time
+
+print('Quality Control 4 Separated Time')
+quality_control_4a_time
+quality_control_4b_time
+quality_control_4c_time
+quality_control_4d_time
+quality_control_4a_time+quality_control_4b_time+quality_control_4c_time+quality_control_4d_time
+
+```
+
+```{r}
+#End
+```
+
